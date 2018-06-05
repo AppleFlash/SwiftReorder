@@ -22,6 +22,23 @@
 
 import UIKit
 
+public typealias MovingCell = UITableViewCell & TableViewMovingCell
+
+/// Prepare cell UI for moving state
+public protocol TableViewMovingCell: class {
+    
+    /// Calling before the snapshot of the cell was made. Set cell's UI to moving state, e.g. change contentView background color, text color etc.
+    func willShowMovingCell()
+    
+    /// Calling after snapshot was created. Restore non moving UI state
+    func didShowMovingCell()
+}
+
+extension TableViewMovingCell {
+    public func willShowMovingCell() {}
+    public func didShowMovingCell() {}
+}
+
 /**
  The style of the reorder spacer cell. Determines whether the cell separator line is visible.
  
@@ -149,6 +166,14 @@ public class ReorderController: NSObject {
     
     /// Whether or not autoscrolling is enabled
     public var autoScrollEnabled = true
+    
+    /// Shift of cell during moving
+    public var tranlationPosition: CGSize = .zero
+    
+    public var cropToBounds: Bool = false
+    
+    /// Corner radius during moving
+    public var cornerRadius: CGFloat = 0
     
     /**
      Returns a `UITableViewCell` if the table view should display a spacer cell at the given index path.
@@ -288,7 +313,11 @@ public class ReorderController: NSObject {
                     UIView.performWithoutAnimation {
                         tableView.reloadRows(at: [row], with: .none)
                     }
-                    self.removeSnapshotView()
+                    UIView.animate(withDuration: self.animationDuration, animations: {
+                        self.snapshotView?.alpha = 0
+                    }, completion: { _ in
+                        self.removeSnapshotView()
+                    })
                 }
             }
         )

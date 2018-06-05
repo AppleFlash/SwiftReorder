@@ -33,22 +33,26 @@ extension ReorderController {
         guard let cell = tableView.cellForRow(at: indexPath) else { return }
         let cellFrame = tableView.convert(cell.frame, to: superview)
         
+        let movingCell = cell as? TableViewMovingCell
+        movingCell?.willShowMovingCell()
         UIGraphicsBeginImageContextWithOptions(cell.bounds.size, false, 0)
         cell.layer.render(in: UIGraphicsGetCurrentContext()!)
         let cellImage = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
+        movingCell?.didShowMovingCell()
         
         let view = UIImageView(image: cellImage)
         view.frame = cellFrame
-        
-        view.layer.masksToBounds = false
+        view.layer.masksToBounds = cropToBounds
         view.layer.opacity = Float(cellOpacity)
         view.layer.transform = CATransform3DMakeScale(cellScale, cellScale, 1)
+        view.transform = CGAffineTransform(translationX: tranlationPosition.width, y: tranlationPosition.height)
         
         view.layer.shadowColor = shadowColor.cgColor
         view.layer.shadowOpacity = Float(shadowOpacity)
         view.layer.shadowRadius = shadowRadius
         view.layer.shadowOffset = shadowOffset
+        view.layer.cornerRadius = cornerRadius
         
         superview.addSubview(view)
         snapshotView = view
@@ -80,53 +84,67 @@ extension ReorderController {
     func animateSnapshotViewIn() {
         guard let snapshotView = snapshotView else { return }
         
+        CATransaction.begin()
+        CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseInEaseOut))
+        CATransaction.setAnimationDuration(animationDuration)
+        
         let opacityAnimation = CABasicAnimation(keyPath: "opacity")
         opacityAnimation.fromValue = 1
         opacityAnimation.toValue = cellOpacity
-        opacityAnimation.duration = animationDuration
         
         let shadowAnimation = CABasicAnimation(keyPath: "shadowOpacity")
         shadowAnimation.fromValue = 0
         shadowAnimation.toValue = shadowOpacity
-        shadowAnimation.duration = animationDuration
         
         let transformAnimation = CABasicAnimation(keyPath: "transform.scale")
         transformAnimation.fromValue = 1
         transformAnimation.toValue = cellScale
-        transformAnimation.duration = animationDuration
-        transformAnimation.timingFunction = CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseInEaseOut)
+        
+        let transformTranslationAnimation = CABasicAnimation(keyPath: "transform.translation")
+        transformTranslationAnimation.fromValue = CGSize.zero
+        transformTranslationAnimation.toValue = tranlationPosition
         
         snapshotView.layer.add(opacityAnimation, forKey: nil)
         snapshotView.layer.add(shadowAnimation, forKey: nil)
         snapshotView.layer.add(transformAnimation, forKey: nil)
+        snapshotView.layer.add(transformTranslationAnimation, forKey: nil)
+        
+        CATransaction.commit()
     }
     
     func animateSnapshotViewOut() {
         guard let snapshotView = snapshotView else { return }
         
+        CATransaction.begin()
+        CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseOut))
+        CATransaction.setAnimationDuration(animationDuration)
+        
         let opacityAnimation = CABasicAnimation(keyPath: "opacity")
         opacityAnimation.fromValue = cellOpacity
         opacityAnimation.toValue = 1
-        opacityAnimation.duration = animationDuration
         
         let shadowAnimation = CABasicAnimation(keyPath: "shadowOpacity")
         shadowAnimation.fromValue = shadowOpacity
         shadowAnimation.toValue = 0
-        shadowAnimation.duration = animationDuration
         
         let transformAnimation = CABasicAnimation(keyPath: "transform.scale")
         transformAnimation.fromValue = cellScale
         transformAnimation.toValue = 1
-        transformAnimation.duration = animationDuration
-        transformAnimation.timingFunction = CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseInEaseOut)
+        
+        let transformTranslationAnimation = CABasicAnimation(keyPath: "transform.translation")
+        transformTranslationAnimation.fromValue = tranlationPosition
+        transformTranslationAnimation.toValue = CGSize.zero
         
         snapshotView.layer.add(opacityAnimation, forKey: nil)
         snapshotView.layer.add(shadowAnimation, forKey: nil)
         snapshotView.layer.add(transformAnimation, forKey: nil)
+        snapshotView.layer.add(transformTranslationAnimation, forKey: nil)
         
         snapshotView.layer.opacity = 1
         snapshotView.layer.shadowOpacity = 0
         snapshotView.layer.transform = CATransform3DIdentity
+        snapshotView.transform = .identity
+        
+        CATransaction.commit()
     }
-
 }
